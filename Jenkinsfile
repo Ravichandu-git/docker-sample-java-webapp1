@@ -2,39 +2,46 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'java-webapp'
-        DOCKER_HUB_USER = credentials('dockerhub-cred')
+        AWS_REGION = 'ap-south-1'
+        REPO_NAME = 'java-webapp'
+        IMAGE_TAG = 'latest'
+        AWS_ACCOUNT_ID = '039483717602'
+        IMAGE_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
     }
 
     stages {
-
-        stage('Check Docker Access') {
-      steps {
-        sh 'docker version'
-      }
-    }
-        stage('Build Docker Image') {
+        stage('Checkout Source Code') {
             steps {
-                sh 'docker build -t java-webapp:latest .'
+                git url: 'https://github.com/bhagyashreep032/docker-sample-java-webapp.git'
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Build Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                sh 'docker build -t $IMAGE_URI .'
+            }
+        }
+
+        stage('Login to ECR & Push Image') {
+            steps {
+                withAWS(region: "${AWS_REGION}", credentials: 'aws-ecr-creds') {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker tag java-webapp:latest $DOCKER_USER/java-webapp:latest
-                        docker push $DOCKER_USER/java-webapp:latest
+                        aws ecr get-login-password --region $AWS_REGION | \
+                        docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+                        docker push $IMAGE_URI
                     '''
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to EKS via Helm') {
             steps {
-                //sh 'docker run -d --name java-webapp-container java-webapp:latest'
-                sh 'docker run -d --name java-webapp-container2 -p 8080:8080 java-webapp:latest'
+                sh '''
+                    helm upgrade --install java-webapp ./helm \
+                    --set image.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME \
+                    --set image.tag=$IMAGE_TAG
+                '''
             }
         }
     }
