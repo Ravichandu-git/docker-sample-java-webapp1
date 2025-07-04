@@ -33,15 +33,17 @@ pipeline {
              }
         }
 
-
         stage('Deploy to EKS via Helm') {
-            steps {
-                sh '''
-                    helm upgrade --install java-webapp ./helm \
-                    --set image.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME \
-                    --set image.tag=$IMAGE_TAG
-                '''
-            }
-        }
+          steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
+                  sh '''
+                        aws eks update-kubeconfig --name my-demo-cluster --region ap-south-1
+                        helm upgrade --install java-webapp ./helm \
+                        --set image.repository=039483717602.dkr.ecr.ap-south-1.amazonaws.com/java-webapp \
+                        --set image.tag=latest
+                  '''
+                }
+              }
+        }  
     }
 }
