@@ -23,17 +23,16 @@ pipeline {
         }
 
         stage('Login to ECR & Push Image') {
-            steps {
-                withAWS(region: "${AWS_REGION}", credentials: 'aws-ecr-creds') {
-                    sh '''
-                        aws ecr get-login-password --region $AWS_REGION | \
-                        docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-                        docker push $IMAGE_URI
-                    '''
+          steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
+                  sh '''
+                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 039483717602.dkr.ecr.ap-south-1.amazonaws.com
+                        docker push 039483717602.dkr.ecr.ap-south-1.amazonaws.com/java-webapp:latest
+                     '''
                 }
-            }
+             }
         }
+
 
         stage('Deploy to EKS via Helm') {
             steps {
