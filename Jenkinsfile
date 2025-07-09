@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('Checkout Source Code') {
             steps {
-                git url: 'https://github.com/Ravichandu-git/docker-sample-java-webapp1.git'
+                git branch: 'main', url: 'https://github.com/Ravichandu-git/docker-sample-java-webapp1.git'
             }
         }
 
